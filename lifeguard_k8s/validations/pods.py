@@ -14,7 +14,8 @@ def pods_validation(namespace):
     if namespace not in IN_REVIEW:
         IN_REVIEW[namespace] = []
 
-    if pods := get_not_running_pods(namespace):
+    pods = get_not_running_pods(namespace)
+    if pods:
         for pod in pods:
 
             if pod in IN_REVIEW[namespace]:
