@@ -5,6 +5,7 @@ from lifeguard_k8s.infrastructure.pods import (
     get_not_running_pods,
     get_events_from_pod,
     get_last_error_event_from_pod,
+    get_logs_from_pod,
 )
 
 
@@ -97,13 +98,14 @@ class InfrastructurePodsTests(TestCase):
         event = MagicMock(name="event")
         event.type = "Normal"
         event.message = "message"
+        event.reason = "reason"
         mock_client.CoreV1Api.return_value.list_namespaced_event.return_value.items = [
             event
         ]
 
         self.assertEqual(
             get_events_from_pod("namespace", "pod_name"),
-            [{"event_type": "Normal", "message": "message"}],
+            [{"event_type": "Normal", "message": "message", "reason": "reason"}],
         )
 
     @patch("lifeguard_k8s.infrastructure.pods.config")
@@ -129,10 +131,12 @@ class InfrastructurePodsTests(TestCase):
         event_normal = MagicMock(name="event")
         event_normal.type = "Normal"
         event_normal.message = "message"
+        event_normal.reason = "reason"
 
         event_error = MagicMock(name="event")
         event_error.type = "Warning"
         event_error.message = "message"
+        event_error.reason = "reason"
 
         mock_client.CoreV1Api.return_value.list_namespaced_event.return_value.items = [
             event_error,
@@ -141,7 +145,30 @@ class InfrastructurePodsTests(TestCase):
 
         self.assertEqual(
             get_last_error_event_from_pod("namespace", "pod_name"),
-            {"event_type": "Warning", "message": "message"},
+            {"event_type": "Warning", "message": "message", "reason": "reason"},
+        )
+
+    @patch("lifeguard_k8s.infrastructure.pods.config")
+    @patch("lifeguard_k8s.infrastructure.pods.client")
+    def test_get_last_error_event_from_pod_with_failed(self, mock_client, _mock_config):
+        event_normal = MagicMock(name="event")
+        event_normal.type = "Normal"
+        event_normal.message = "message"
+        event_normal.reason = "reason"
+
+        event_error = MagicMock(name="event")
+        event_error.type = "Warning"
+        event_error.message = "failed"
+        event_error.reason = "Failed"
+
+        mock_client.CoreV1Api.return_value.list_namespaced_event.return_value.items = [
+            event_error,
+            event_normal,
+        ]
+
+        self.assertEqual(
+            get_last_error_event_from_pod("namespace", "pod_name"),
+            {"event_type": "Warning", "message": "failed", "reason": "Failed"},
         )
 
     @patch(
@@ -157,3 +184,20 @@ class InfrastructurePodsTests(TestCase):
 
         self.assertEqual(get_not_running_pods("namespace"), [])
         mock_config.load_kube_config.assert_called_with("path_to_file")
+
+    @patch("lifeguard_k8s.infrastructure.pods.config")
+    @patch("lifeguard_k8s.infrastructure.pods.client")
+    def test_get_logs_from_pod(self, mock_client, mock_config):
+        mock_client.CoreV1Api.return_value.read_namespaced_pod_log.return_value = "log"
+        self.assertEqual(get_logs_from_pod("namespace", "pod_name"), "log")
+
+    @patch("lifeguard_k8s.infrastructure.pods.config")
+    @patch("lifeguard_k8s.infrastructure.pods.client")
+    @patch(
+        "lifeguard_k8s.infrastructure.pods.LIFEGUARD_KUBERNETES_READ_LOG_MAX_SIZE", 10
+    )
+    def test_get_logs_from_pod_with_limited_size(self, mock_client, mock_config):
+        mock_client.CoreV1Api.return_value.read_namespaced_pod_log.return_value = """
+a big log that will be limited
+send only last 10 characters"""
+        self.assertEqual(get_logs_from_pod("namespace", "pod_name"), "characters")

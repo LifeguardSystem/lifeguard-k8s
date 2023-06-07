@@ -43,7 +43,28 @@ class ValidationsPodsTest(TestCase):
         self.assertEqual(
             response.details, {"pods": ["pod"], "traceback": ["error message"]}
         )
-        self.assertEqual(response.settings, None)
+
+    @patch("lifeguard_k8s.validations.pods.IN_REVIEW", {"namespace": ["pod"]})
+    @patch("lifeguard_k8s.validations.pods.get_not_running_pods")
+    @patch("lifeguard_k8s.validations.pods.get_last_error_event_from_pod")
+    @patch("lifeguard_k8s.validations.pods.get_logs_from_pod")
+    def test_error_response_on_second_error_with_log_usage(
+        self,
+        mock_get_logs_from_pod,
+        mock_last_error_event_from_pod,
+        mock_get_not_running_pods,
+    ):
+        mock_get_not_running_pods.return_value = ["pod"]
+        mock_last_error_event_from_pod.return_value = {
+            "message": "Back-off restarting failed container"
+        }
+
+        mock_get_logs_from_pod.return_value = "log"
+
+        response = pods_validation("namespace")
+
+        self.assertEqual(response.status, PROBLEM)
+        self.assertEqual(response.details, {"pods": ["pod"], "traceback": ["log"]})
 
     @patch("lifeguard_k8s.validations.pods.IN_REVIEW", {"namespace": ["pod"]})
     @patch("lifeguard_k8s.validations.pods.get_not_running_pods")

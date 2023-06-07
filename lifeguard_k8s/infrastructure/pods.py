@@ -1,5 +1,8 @@
 from kubernetes import client, config
-from lifeguard_k8s.settings import LIFEGUARD_KUBERNETES_CONFIG
+from lifeguard_k8s.settings import (
+    LIFEGUARD_KUBERNETES_CONFIG,
+    LIFEGUARD_KUBERNETES_READ_LOG_MAX_SIZE,
+)
 
 RUNNING_STATUS = "Running"
 COMPLETED_STATUS = "Succeeded"
@@ -54,8 +57,10 @@ def get_events_from_pod(namespace, pod_name):
     events = v1.list_namespaced_event(
         namespace, field_selector=f"involvedObject.name={pod_name}"
     )
-
-    return [{"event_type": item.type, "message": item.message} for item in events.items]
+    return [
+        {"event_type": item.type, "message": item.message, "reason": item.reason}
+        for item in events.items
+    ]
 
 
 def get_last_error_event_from_pod(namespace, pod_name):
@@ -63,6 +68,15 @@ def get_last_error_event_from_pod(namespace, pod_name):
     events = [event for event in events if event["event_type"] != "Normal"]
 
     if events:
+        failed = [event for event in events if event["reason"] == "Failed"]
+        if failed:
+            return failed[-1]
         return events[-1]
 
     return None
+
+
+def get_logs_from_pod(namespace, pod_name):
+    v1 = _get_clients()
+    log = v1.read_namespaced_pod_log(pod_name, namespace)
+    return log[-LIFEGUARD_KUBERNETES_READ_LOG_MAX_SIZE:]
