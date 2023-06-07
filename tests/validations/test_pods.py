@@ -15,7 +15,7 @@ class ValidationsPodsTest(TestCase):
 
         mock_get_not_running_pods.assert_called_with("namespace")
         self.assertEqual(response.status, NORMAL)
-        self.assertEqual(response.details, {"pods": []})
+        self.assertEqual(response.details, {"pods": [], "traceback": []})
         self.assertEqual(response.settings, None)
 
     @patch("lifeguard_k8s.validations.pods.get_not_running_pods")
@@ -25,18 +25,39 @@ class ValidationsPodsTest(TestCase):
         response = pods_validation("namespace")
 
         self.assertEqual(response.status, NORMAL)
-        self.assertEqual(response.details, {"pods": []})
+        self.assertEqual(response.details, {"pods": [], "traceback": []})
         self.assertEqual(response.settings, None)
 
     @patch("lifeguard_k8s.validations.pods.IN_REVIEW", {"namespace": ["pod"]})
     @patch("lifeguard_k8s.validations.pods.get_not_running_pods")
-    def test_error_response_on_second_error(self, mock_get_not_running_pods):
+    @patch("lifeguard_k8s.validations.pods.get_last_error_event_from_pod")
+    def test_error_response_on_second_error(
+        self, mock_last_error_event_from_pod, mock_get_not_running_pods
+    ):
         mock_get_not_running_pods.return_value = ["pod"]
+        mock_last_error_event_from_pod.return_value = {"message": "error message"}
 
         response = pods_validation("namespace")
 
         self.assertEqual(response.status, PROBLEM)
-        self.assertEqual(response.details, {"pods": ["pod"]})
+        self.assertEqual(
+            response.details, {"pods": ["pod"], "traceback": ["error message"]}
+        )
+        self.assertEqual(response.settings, None)
+
+    @patch("lifeguard_k8s.validations.pods.IN_REVIEW", {"namespace": ["pod"]})
+    @patch("lifeguard_k8s.validations.pods.get_not_running_pods")
+    @patch("lifeguard_k8s.validations.pods.get_last_error_event_from_pod")
+    def test_error_response_on_second_error_without_traceback(
+        self, mock_last_error_event_from_pod, mock_get_not_running_pods
+    ):
+        mock_get_not_running_pods.return_value = ["pod"]
+        mock_last_error_event_from_pod.return_value = None
+
+        response = pods_validation("namespace")
+
+        self.assertEqual(response.status, PROBLEM)
+        self.assertEqual(response.details, {"pods": ["pod"], "traceback": [None]})
         self.assertEqual(response.settings, None)
 
     @patch("lifeguard_k8s.validations.pods.IN_REVIEW", {"namespace": ["pod"]})

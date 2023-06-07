@@ -21,15 +21,19 @@ def _exists_success_pod_after_job(job_pod, pods):
     return False
 
 
-def get_not_running_pods(namespace):
-    not_running_pods = []
-
+def _get_clients():
     if LIFEGUARD_KUBERNETES_CONFIG:
         config.load_kube_config(LIFEGUARD_KUBERNETES_CONFIG)
     else:
         config.load_incluster_config()
 
-    v1 = client.CoreV1Api()
+    return client.CoreV1Api()
+
+
+def get_not_running_pods(namespace):
+    not_running_pods = []
+
+    v1 = _get_clients()
     pods = v1.list_namespaced_pod(namespace)
 
     for pod in pods.items:
@@ -43,3 +47,22 @@ def get_not_running_pods(namespace):
                 not_running_pods.append(pod.metadata.name)
 
     return not_running_pods
+
+
+def get_events_from_pod(namespace, pod_name):
+    v1 = _get_clients()
+    events = v1.list_namespaced_event(
+        namespace, field_selector=f"involvedObject.name={pod_name}"
+    )
+
+    return [{"event_type": item.type, "message": item.message} for item in events.items]
+
+
+def get_last_error_event_from_pod(namespace, pod_name):
+    events = get_events_from_pod(namespace, pod_name)
+    events = [event for event in events if event["event_type"] != "Normal"]
+
+    if events:
+        return events[-1]
+
+    return None
