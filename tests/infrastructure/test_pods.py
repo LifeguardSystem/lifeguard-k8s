@@ -6,6 +6,7 @@ from lifeguard_k8s.infrastructure.pods import (
     get_events_from_pod,
     get_last_error_event_from_pod,
     get_logs_from_pod,
+    delete_a_pod,
 )
 
 
@@ -201,3 +202,13 @@ class InfrastructurePodsTests(TestCase):
 a big log that will be limited
 send only last 10 characters"""
         self.assertEqual(get_logs_from_pod("namespace", "pod_name"), "characters")
+
+    @patch("lifeguard_k8s.infrastructure.pods.config")
+    @patch("lifeguard_k8s.infrastructure.pods.client")
+    def test_delete_a_pod(self, mock_client, mock_config):
+        mock_client.CoreV1Api.return_value.delete_namespaced_pod.return_value = None
+        delete_a_pod("namespace", "pod_name")
+
+        mock_client.CoreV1Api.return_value.delete_namespaced_pod.assert_called_with(
+            "pod_name", "namespace"
+        )

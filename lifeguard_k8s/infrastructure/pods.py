@@ -52,6 +52,11 @@ def get_not_running_pods(namespace):
     return not_running_pods
 
 
+def delete_a_pod(namespace, pod_name):
+    v1 = _get_clients()
+    v1.delete_namespaced_pod(pod_name, namespace)
+
+
 def get_events_from_pod(namespace, pod_name):
     v1 = _get_clients()
     events = v1.list_namespaced_event(
