@@ -2,6 +2,28 @@
 
 Integration with Kubernetes
 
+## Actions
+
+- __delete_informed_pods__: delete pods informed in validation response details. Example of usage:
+
+```python
+from lifeguard_k8s.actions.pods import deleted_formed_pods
+
+@validation(
+    "drubin-lifeguard",
+    actions=[delete_informed_pods],
+    schedule={"every": {"minutes": 1}},
+)
+def drubin_lifeguard():
+    # To execute delete_informed_pods action the response should have the
+    # two attributes in details:
+    # - namespace: the Kubernetes namespace where the pods are
+    # - delete_pods: list of pods to be deleted
+    return ValidationResponse(
+        PROBLEM, {"delete_pods": ["lifeguard-75c44897b4-k9g94"], "namespace": "drubin"}
+    )
+```
+
 ## Validations
 
 - __pods_validation__: check if all pods are running

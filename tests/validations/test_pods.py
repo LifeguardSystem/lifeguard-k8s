@@ -15,7 +15,9 @@ class ValidationsPodsTest(TestCase):
 
         mock_get_not_running_pods.assert_called_with("namespace")
         self.assertEqual(response.status, NORMAL)
-        self.assertEqual(response.details, {"pods": [], "traceback": []})
+        self.assertEqual(
+            response.details, {"pods": [], "traceback": [], "namespace": "namespace"}
+        )
         self.assertEqual(response.settings, None)
 
     @patch("lifeguard_k8s.validations.pods.get_not_running_pods")
@@ -25,7 +27,9 @@ class ValidationsPodsTest(TestCase):
         response = pods_validation("namespace")
 
         self.assertEqual(response.status, NORMAL)
-        self.assertEqual(response.details, {"pods": [], "traceback": []})
+        self.assertEqual(
+            response.details, {"pods": [], "traceback": [], "namespace": "namespace"}
+        )
         self.assertEqual(response.settings, None)
 
     @patch("lifeguard_k8s.validations.pods.IN_REVIEW", {"namespace": ["pod"]})
@@ -41,7 +45,8 @@ class ValidationsPodsTest(TestCase):
 
         self.assertEqual(response.status, PROBLEM)
         self.assertEqual(
-            response.details, {"pods": ["pod"], "traceback": ["error message"]}
+            response.details,
+            {"pods": ["pod"], "traceback": ["error message"], "namespace": "namespace"},
         )
 
     @patch("lifeguard_k8s.validations.pods.IN_REVIEW", {"namespace": ["pod"]})
@@ -64,7 +69,10 @@ class ValidationsPodsTest(TestCase):
         response = pods_validation("namespace")
 
         self.assertEqual(response.status, PROBLEM)
-        self.assertEqual(response.details, {"pods": ["pod"], "traceback": ["log"]})
+        self.assertEqual(
+            response.details,
+            {"pods": ["pod"], "traceback": ["log"], "namespace": "namespace"},
+        )
 
     @patch("lifeguard_k8s.validations.pods.IN_REVIEW", {"namespace": ["pod"]})
     @patch("lifeguard_k8s.validations.pods.get_not_running_pods")
@@ -78,7 +86,10 @@ class ValidationsPodsTest(TestCase):
         response = pods_validation("namespace")
 
         self.assertEqual(response.status, PROBLEM)
-        self.assertEqual(response.details, {"pods": ["pod"], "traceback": [None]})
+        self.assertEqual(
+            response.details,
+            {"pods": ["pod"], "traceback": [None], "namespace": "namespace"},
+        )
         self.assertEqual(response.settings, None)
 
     @patch("lifeguard_k8s.validations.pods.IN_REVIEW", {"namespace": ["pod"]})

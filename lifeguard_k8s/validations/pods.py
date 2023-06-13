@@ -24,7 +24,7 @@ def __append_traceback(details, namespace, pod):
 def pods_validation(namespace):
     status = NORMAL
 
-    details = {"pods": [], "traceback": []}
+    details = {"pods": [], "traceback": [], "namespace": namespace}
 
     if namespace not in IN_REVIEW:
         IN_REVIEW[namespace] = []
