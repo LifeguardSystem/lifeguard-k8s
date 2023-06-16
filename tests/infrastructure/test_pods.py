@@ -7,12 +7,15 @@ from lifeguard_k8s.infrastructure.pods import (
     get_last_error_event_from_pod,
     get_logs_from_pod,
     delete_a_pod,
+    get_namespace_infos,
 )
 
 
 def build_pod(status, container_status, pod_name, kind="ReplicaSet"):
     container_statuses = MagicMock(name="container_statuses")
     container_statuses.ready = container_status
+    container_statuses.restart_count = 0
+    container_statuses.name = "container_name"
 
     owner_reference = MagicMock(name="owner_reference")
     owner_reference.kind = kind
@@ -188,7 +191,7 @@ class InfrastructurePodsTests(TestCase):
 
     @patch("lifeguard_k8s.infrastructure.pods.config")
     @patch("lifeguard_k8s.infrastructure.pods.client")
-    def test_get_logs_from_pod(self, mock_client, mock_config):
+    def test_get_logs_from_pod(self, mock_client, _mock_config):
         mock_client.CoreV1Api.return_value.read_namespaced_pod_log.return_value = "log"
         self.assertEqual(get_logs_from_pod("namespace", "pod_name"), "log")
 
@@ -197,7 +200,7 @@ class InfrastructurePodsTests(TestCase):
     @patch(
         "lifeguard_k8s.infrastructure.pods.LIFEGUARD_KUBERNETES_READ_LOG_MAX_SIZE", 10
     )
-    def test_get_logs_from_pod_with_limited_size(self, mock_client, mock_config):
+    def test_get_logs_from_pod_with_limited_size(self, mock_client, _mock_config):
         mock_client.CoreV1Api.return_value.read_namespaced_pod_log.return_value = """
 a big log that will be limited
 send only last 10 characters"""
@@ -205,10 +208,37 @@ send only last 10 characters"""
 
     @patch("lifeguard_k8s.infrastructure.pods.config")
     @patch("lifeguard_k8s.infrastructure.pods.client")
-    def test_delete_a_pod(self, mock_client, mock_config):
+    def test_delete_a_pod(self, mock_client, _mock_config):
         mock_client.CoreV1Api.return_value.delete_namespaced_pod.return_value = None
         delete_a_pod("namespace", "pod_name")
 
         mock_client.CoreV1Api.return_value.delete_namespaced_pod.assert_called_with(
             "pod_name", "namespace"
+        )
+
+    @patch("lifeguard_k8s.infrastructure.pods.config")
+    @patch("lifeguard_k8s.infrastructure.pods.client")
+    def test_get_namespace_infos(self, mock_client, _mock_config):
+        pod = build_pod("Running", True, "pod_name")
+
+        mock_client.CoreV1Api.return_value.list_namespaced_pod.return_value.items = [
+            pod
+        ]
+        self.assertEqual(
+            get_namespace_infos("namespace"),
+            {
+                "pods": [
+                    {
+                        "containers": [
+                            {
+                                "name": "container_name",
+                                "ready": True,
+                                "restart_count": 0,
+                            }
+                        ],
+                        "name": "pod_name",
+                        "status": "Running",
+                    }
+                ]
+            },
         )

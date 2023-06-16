@@ -6,7 +6,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="lifeguard-k8s",
-    version="1.2.0",
+    version="1.2.1",
     url="https://github.com/LifeguardSystem/lifeguard-k8s",
     author="Diego Rubin",
     author_email="contact@diegorubin.dev",

@@ -33,6 +33,33 @@ def _get_clients():
     return client.CoreV1Api()
 
 
+def get_namespace_infos(namespace):
+    """
+    Return current main infos of a namespace
+    """
+    infos = {"pods": []}
+
+    v1 = _get_clients()
+    pods = v1.list_namespaced_pod(namespace)
+
+    for pod in pods.items:
+        infos["pods"].append(
+            {
+                "name": pod.metadata.name,
+                "status": pod.status.phase,
+                "containers": [
+                    {
+                        "name": container.name,
+                        "ready": container.ready,
+                        "restart_count": container.restart_count,
+                    }
+                    for container in pod.status.container_statuses
+                ],
+            }
+        )
+    return infos
+
+
 def get_not_running_pods(namespace):
     not_running_pods = []
 
