@@ -1,6 +1,5 @@
-from kubernetes import client, config
+from lifeguard_k8s.infrastructure import get_client
 from lifeguard_k8s.settings import (
-    LIFEGUARD_KUBERNETES_CONFIG,
     LIFEGUARD_KUBERNETES_READ_LOG_MAX_SIZE,
 )
 
@@ -24,46 +23,10 @@ def _exists_success_pod_after_job(job_pod, pods):
     return False
 
 
-def _get_clients():
-    if LIFEGUARD_KUBERNETES_CONFIG:
-        config.load_kube_config(LIFEGUARD_KUBERNETES_CONFIG)
-    else:
-        config.load_incluster_config()
-
-    return client.CoreV1Api()
-
-
-def get_namespace_infos(namespace):
-    """
-    Return current main infos of a namespace
-    """
-    infos = {"pods": []}
-
-    v1 = _get_clients()
-    pods = v1.list_namespaced_pod(namespace)
-
-    for pod in pods.items:
-        infos["pods"].append(
-            {
-                "name": pod.metadata.name,
-                "status": pod.status.phase,
-                "containers": [
-                    {
-                        "name": container.name,
-                        "ready": container.ready,
-                        "restart_count": container.restart_count,
-                    }
-                    for container in pod.status.container_statuses
-                ],
-            }
-        )
-    return infos
-
-
 def get_not_running_pods(namespace):
     not_running_pods = []
 
-    v1 = _get_clients()
+    v1 = get_client()
     pods = v1.list_namespaced_pod(namespace)
 
     for pod in pods.items:
@@ -80,12 +43,12 @@ def get_not_running_pods(namespace):
 
 
 def delete_a_pod(namespace, pod_name):
-    v1 = _get_clients()
+    v1 = get_client()
     v1.delete_namespaced_pod(pod_name, namespace)
 
 
 def get_events_from_pod(namespace, pod_name):
-    v1 = _get_clients()
+    v1 = get_client()
     events = v1.list_namespaced_event(
         namespace, field_selector=f"involvedObject.name={pod_name}"
     )
@@ -109,6 +72,6 @@ def get_last_error_event_from_pod(namespace, pod_name):
 
 
 def get_logs_from_pod(namespace, pod_name):
-    v1 = _get_clients()
+    v1 = get_client()
     log = v1.read_namespaced_pod_log(pod_name, namespace)
     return log[-LIFEGUARD_KUBERNETES_READ_LOG_MAX_SIZE:]
